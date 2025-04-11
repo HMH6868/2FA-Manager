@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#f5f5f5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/sidebar.css">
+    <link rel="stylesheet" href="assets/css/2fa.css">
+    <link rel="icon" type="image/x-icon" href="../images/logo/logo3.png">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <title>2FA Code Manager</title>
+</head>
+<body>
+    <div class="container" id="appContainer">
+        <!-- Login section - initially visible -->
+        <div class="login-section" id="loginSection">
+            <h2 class="card-title"><i class="fas fa-shield-alt"></i>2FA Code Manager</h2>
+            <p class="text-muted mb-4">Sign in to access your 2FA codes across devices</p>
+            
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" required>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+                    <button type="button" class="btn btn-outline-secondary" id="registerBtn">Create Account</button>
+                </div>
+            </form>
+            
+            <button id="installPWA" class="btn btn-info w-100">
+                <i class="fas fa-download me-2"></i>Install App
+            </button>
+        </div>
+        
+        <!-- Main application - initially hidden -->
+        <div class="card" id="mainApp" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="card-title mb-0"><i class="fas fa-shield-alt"></i>2FA Code Manager</h2>
+                <div class="user-info">
+                    <span class="user-email" id="userEmail" title="">user@example.com</span>
+                    <button class="btn" id="logoutBtn" title="Sign Out">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted mb-2">Securely store and manage your two-factor authentication codes</p>
+            <div class="sync-status mb-4" id="syncStatus">
+                <i class="fas fa-check-circle"></i> All codes synced
+            </div>
+            
+            <div class="mb-4 action-buttons">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                    <i class="fas fa-plus me-2"></i>Add New Account
+                </button>
+                <button class="btn btn-outline-primary ms-2" id="exportAccountsBtn" style="background-image: var(--primary-gradient); color: white; border: none;">
+                    <i class="fas fa-file-export me-2"></i><span class="button-text">Export</span>
+                </button>
+                <button class="btn btn-outline-primary ms-2" id="importAccountsBtn" style="background-image: var(--primary-gradient); color: white; border: none;">
+                    <i class="fas fa-file-import me-2"></i><span class="button-text">Import</span>
+                </button>
+                <button class="btn btn-outline-secondary ms-2" id="refreshAccountsBtn" title="Refresh accounts">
+                    <i class="fas fa-sync-alt"></i><span class="button-text">Refresh</span>
+                </button>
+            </div>
+            
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+                <div class="search-container flex-grow-1 me-md-3">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search accounts...">
+                </div>
+                
+                <!-- View toggle buttons (shown on all screen sizes) -->
+                <div class="view-toggle mt-2 mt-md-0">
+                    <div class="btn-group" role="group" aria-label="View mode selection">
+                        <button type="button" class="btn active" data-view="standard" onclick="changeViewMode('standard')" aria-pressed="true" title="Standard list view">
+                            <i class="fas fa-th-list me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">List</span>
+                        </button>
+                        <button type="button" class="btn" data-view="compact" onclick="changeViewMode('compact')" aria-pressed="false" title="Compact view">
+                            <i class="fas fa-list me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Compact</span>
+                        </button>
+                        <button type="button" class="btn" data-view="grid" onclick="changeViewMode('grid')" aria-pressed="false" title="Grid view">
+                            <i class="fas fa-th me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Grid</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="accountsList" class="thin-scrollbar">
+                <!-- Accounts will be dynamically added here -->
+                <div class="no-accounts" id="noAccounts">
+                    <i class="fas fa-user-shield fa-3x mb-3" style="color: #e0e6ed;"></i>
+                    <h5>No 2FA accounts added yet</h5>
+                    <p>Add your first account to get started</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Register Modal -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label for="regEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="regEmail" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="regPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="regPassword" required minlength="8">
+                            <small class="form-text text-muted">Password must be at least 8 characters</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="createAccountBtn">Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Account Modal -->
+    <div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white" style="background-image: var(--primary-gradient);">
+                    <h5 class="modal-title"><i class="fas fa-shield-alt me-2"></i>Add New 2FA Account</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4 add-account-icon">
+                        <div class="account-icon-preview mb-2" id="serviceIconPreview">
+                            <i class="fas fa-shield-alt fa-2x"></i>
+                        </div>
+                    </div>
+                    
+                    <form id="addAccountForm">
+                        <div class="mb-3">
+                            <label for="serviceType" class="form-label">Service Type</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="selectedServiceIcon"><i class="fas fa-globe"></i></span>
+                                <select class="form-select" id="serviceType">
+                                    <option value="default">Select service...</option>
+                                    <option value="google">Google</option>
+                                    <option value="facebook">Facebook</option>
+                                    <option value="github">GitHub</option>
+                                    <option value="twitter">Twitter</option>
+                                    <option value="microsoft">Microsoft</option>
+                                    <option value="apple">Apple</option>
+                                    <option value="amazon">Amazon</option>
+                                    <option value="dropbox">Dropbox</option>
+                                    <option value="slack">Slack</option>
+                                    <option value="discord">Discord</option>
+                                    <option value="linkedin">LinkedIn</option>
+                                    <option value="paypal">PayPal</option>
+                                    <option value="steam">Steam</option>
+                                    <option value="gitlab">GitLab</option>
+                                    <option value="wordpress">WordPress</option>
+                                    <option value="bitbucket">Bitbucket</option>
+                                    <option value="protonmail">ProtonMail</option>
+                                    <option value="binance">Binance</option>
+                                    <option value="digitalocean">DigitalOcean</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="accountName" class="form-label">Account Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-tag"></i></span>
+                                <input type="text" class="form-control" id="accountName" required placeholder="e.g. Work Email, Personal Account">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="secretKey" class="form-label">Secret Key</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                <input type="text" class="form-control" id="secretKey" required placeholder="Enter the secret key">
+                                <button class="btn btn-outline-primary" type="button" id="pasteSecretBtn" title="Paste from clipboard" style="background-image: var(--primary-gradient); color: white; border: none;">
+                                    <i class="fas fa-paste"></i>
+                                </button>
+                            </div>
+                            <small class="form-text text-muted mt-1">Enter the secret key provided by the service</small>
+                        </div>
+                        
+                        <div class="d-flex mb-3">
+                            <div class="form-check form-switch ms-auto">
+                                <input class="form-check-input" type="checkbox" id="pinAccountSwitch">
+                                <label class="form-check-label" for="pinAccountSwitch">
+                                    <i class="fas fa-thumbtack me-1"></i> Pin this account
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary px-4" id="saveAccountBtn">
+                        <i class="fas fa-check me-2"></i>Add Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Scan QR Code</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <p>Position the QR code within the camera view</p>
+                        <video id="qrVideo" playsinline></video>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert container -->
+    <div class="alert-container" id="alertContainer"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwJ6gKE7NhEjrVUU6WV-Fl7G9nPJU80fw",
+            authDomain: "manage-2fa.firebaseapp.com",
+            projectId: "manage-2fa",
+            storageBucket: "manage-2fa.firebasestorage.app",
+            messagingSenderId: "634856988727",
+            appId: "1:634856988727:web:24b95066a740b08026dfb2",
+            measurementId: "G-V7EG0PGXHE"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Enable Firestore offline persistence
+        firebase.firestore().enablePersistence()
+          .catch((err) => {
+              if (err.code == 'failed-precondition') {
+                  // Multiple tabs open, persistence can only be enabled in one tab
+                  console.log("Persistence failed: Multiple tabs open");
+              } else if (err.code == 'unimplemented') {
+                  // Browser doesn't support persistence
+                  console.log("Persistence not supported by browser");
+              }
+          });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Firebase services
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            
+            // Constants
+            const TOKEN_UPDATE_INTERVAL = 1000; // 1 second
+            const OFFLINE_STORAGE_KEY = 'offline_2fa_accounts';
+            const SERVICE_ICONS = {
+                default: 'fa-shield-alt',
+                google: 'fa-google',
+                facebook: 'fa-facebook',
+                github: 'fa-github',
+                twitter: 'fa-twitter',
+                microsoft: 'fa-microsoft',
+                apple: 'fa-apple',
+                amazon: 'fa-amazon',
+                dropbox: 'fa-dropbox',
+                slack: 'fa-slack',
+                discord: 'fa-discord',
+                linkedin: 'fa-linkedin',
+                paypal: 'fa-paypal',
+                steam: 'fa-steam',
+                gitlab: 'fa-gitlab',
+                wordpress: 'fa-wordpress',
+                bitbucket: 'fa-bitbucket',
+                protonmail: 'fa-envelope',
+                binance: 'fa-coins',
+                digitalocean: 'fa-cloud',
+                other: 'fa-shield-alt'
+            };
+            
+            // Elements
+            const appContainer = document.getElementById('appContainer');
+            const loginSection = document.getElementById('loginSection');
+            const mainApp = document.getElementById('mainApp');
+            const userEmail = document.getElementById('userEmail');
+            const syncStatus = document.getElementById('syncStatus');
+            const accountsList = document.getElementById('accountsList');
+            const noAccounts = document.getElementById('noAccounts');
+            const searchInput = document.getElementById('searchInput');
+            const addAccountForm = document.getElementById('addAccountForm');
+            const saveAccountBtn = document.getElementById('saveAccountBtn');
+            const pasteSecretBtn = document.getElementById('pasteSecretBtn');
+            const accountNameInput = document.getElementById('accountName');
+            const secretKeyInput = document.getElementById('secretKey');
+            const loginForm = document.getElementById('loginForm');
+            const loginBtn = document.getElementById('loginBtn');
+            const registerBtn = document.getElementById('registerBtn');
+            const registerForm = document.getElementById('registerForm');
+            const createAccountBtn = document.getElementById('createAccountBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const serviceTypeSelect = document.getElementById('serviceType');
+            const selectedServiceIcon = document.getElementById('selectedServiceIcon');
+            
+            // Bootstrap Modals
+            const addAccountModal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+            const registerModal = new bootstrap.Modal(document.getElementById('registerModal'));
+            const alertContainer = document.getElementById('alertContainer');
+            
+            // State
+            let accounts = [];
+            let updateInterval;
+            let currentUser = null;
+            let unsubscribeListener = null;
+            let isOnline = window.navigator.onLine;
+            let pendingOperations = [];
+            let currentViewMode = 'standard'; // Track the current view mode
+            
+            // Check online status
+            window.addEventListener('online', handleOnlineStatusChange);
+            window.addEventListener('offline', handleOnlineStatusChange);
+            
+            function handleOnlineStatusChange() {
+                isOnline = window.navigator.onLine;
+                if (isOnline) {
+                    updateSyncStatus('syncing', 'Reconnected, syncing changes...');
+                    processPendingOperations();
+                } else {
+                    updateSyncStatus('offline', 'You are offline. Changes will sync when connection is restored', 'fa-wifi-slash');
+                }
+            }
+            
+            // Process pending operations
+            function processPendingOperations() {
+                if (!isOnline || !currentUser) return;
+                
+                const userId = currentUser.uid;
+                
+                // Load pending operations from localStorage
+                const pendingData = localStorage.getItem(OFFLINE_STORAGE_KEY);
+                if (!pendingData) {
+                    updateSyncStatus('synced', 'All changes synced');
+                    return;
+                }
+                
+                try {
+                    pendingOperations = JSON.parse(pendingData);
+                    
+                    // Filter operations to only include those belonging to the current user
+                    pendingOperations = pendingOperations.filter(op => 
+                        !op.data.userId || op.data.userId === userId
+                    );
+                    
+                    if (pendingOperations.length === 0) {
+                        updateSyncStatus('synced', 'All changes synced');
+                        localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                        return;
+                    }
+                    
+                    // Process each pending operation
+                    updateSyncStatus('syncing', `Syncing ${pendingOperations.length} pending changes...`);
+                    
+                    const processNext = () => {
+                        if (pendingOperations.length === 0) {
+                            localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                            updateSyncStatus('synced', 'All changes synced');
+                            return;
+                        }
+                        
+                        const operation = pendingOperations.shift();
+                        
+                        // Skip operations for other users
+                        if (operation.data.userId && operation.data.userId !== userId) {
+                            console.log(`Skipping operation for different user: ${operation.data.userId}`);
+                            processNext();
+                            return;
+                        }
+                        
+                        // Execute the operation based on type
+                        if (operation.type === 'add') {
+                            executeAddAccount(operation.data.name, operation.data.secret, operation.data.service, operation.data.id, operation.data.pinned)
+                                .then(() => {
+                                    console.log(`Pending add operation completed for user ${userId}`);
+                                    processNext();
+                                })
+                                .catch((error) => {
+                                    console.error(`Error executing pending add for user ${userId}:`, error);
+                                    // If failed, push back to pending operations
+                                    pendingOperations.push(operation);
+                                    savePendingOperations();
+                                    updateSyncStatus('error', 'Some changes failed to sync');
+                                });
+                        } else if (operation.type === 'update') {
+                            executeUpdateAccount(operation.data.id, operation.data.name, operation.data.secret, operation.data.service, operation.data.pinned)
+                                .then(() => {
+                                    console.log(`Pending update operation completed for user ${userId}`);
+                                    processNext();
+                                })
+                                .catch((error) => {
+                                    console.error(`Error executing pending update for user ${userId}:`, error);
+                                    pendingOperations.push(operation);
+                                    savePendingOperations();
+                                    updateSyncStatus('error', 'Some changes failed to sync');
+                                });
+                        } else if (operation.type === 'delete') {
+                            executeDeleteAccount(operation.data.id)
+                                .then(() => {
+                                    console.log(`Pending delete operation completed for user ${userId}`);
+                                    processNext();
+                                })
+                                .catch((error) => {
+                                    console.error(`Error executing pending delete for user ${userId}:`, error);
+                                    pendingOperations.push(operation);
+                                    savePendingOperations();
+                                    updateSyncStatus('error', 'Some changes failed to sync');
+                                });
+                        } else {
+                            // Unknown operation type, skip it
+                            console.warn(`Unknown operation type: ${operation.type}`);
+                            processNext();
+                        }
+                    };
+                    
+                    processNext();
+                } catch (error) {
+                    console.error(`Error processing pending operations for user ${userId}:`, error);
+                    updateSyncStatus('error', 'Failed to sync some changes');
+                    localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                }
+            }
+            
+            // Save pending operations to localStorage
+            function savePendingOperations() {
+                if (pendingOperations.length > 0) {
+                    localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(pendingOperations));
+                } else {
+                    localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                }
+            }
+            
+            // Add a pending operation
+            function addPendingOperation(type, data) {
+                pendingOperations.push({ type, data, timestamp: Date.now() });
+                savePendingOperations();
+            }
+            
+            // Robust authentication state check
+            auth.onAuthStateChanged(function(user) {
+                if (user) {
+                    console.log("User is signed in:", user.uid);
+                    // User is signed in
+                    currentUser = user;
+                    userEmail.textContent = user.email;
+                    userEmail.title = user.email; // Set the tooltip with full email
+                    loginSection.style.display = 'none';
+                    mainApp.style.display = 'block';
+                    
+                    // Clear any existing accounts from previous user
+                    accounts = [];
+                    renderAccounts();
+                    
+                    // Start real-time listener for accounts
+                    setupAccountsListener();
+                } else {
+                    console.log("User is signed out");
+                    // User is signed out
+                    currentUser = null;
+                    accounts = [];
+                    clearInterval(updateInterval);
+                    updateInterval = null;
+                    
+                    // Remove listener if exists
+                    if (unsubscribeListener) {
+                        unsubscribeListener();
+                        unsubscribeListener = null;
+                    }
+                    
+                    mainApp.style.display = 'none';
+                    loginSection.style.display = 'block';
+                }
+            });
+            
+            // Set up real-time listener for accounts collection
+            function setupAccountsListener() {
+                updateSyncStatus('syncing', 'Connecting to database...');
+                
+                if (unsubscribeListener) {
+                    unsubscribeListener();
+                    unsubscribeListener = null;
+                }
+                
+                if (!currentUser) {
+                    console.error("No user is logged in, cannot set up listener");
+                    updateSyncStatus('error', 'Authentication error');
+                    return;
+                }
+                
+                const userId = currentUser.uid;
+                console.log(`Setting up listener for user: ${userId}, email: ${currentUser.email}`);
+                
+                if (!isOnline) {
+                    updateSyncStatus('offline', 'You are offline. Using locally cached data', 'fa-wifi-slash');
+                    // When offline, Firestore will use cached data if available
+                }
+                
+                try {
+                    // Use the current user's UID to scope queries to only their data
+                    unsubscribeListener = db.collection('users').doc(userId)
+                        .collection('accounts')
+                        .onSnapshot(
+                            (snapshot) => {
+                                accounts = [];
+                                snapshot.forEach((doc) => {
+                                    accounts.push({
+                                        id: doc.id,
+                                        ...doc.data()
+                                    });
+                                });
+                                
+                                // Sort accounts: pinned first, then alphabetically by name
+                                accounts.sort((a, b) => {
+                                    // First sort by pinned status
+                                    if (a.pinned && !b.pinned) return -1;
+                                    if (!a.pinned && b.pinned) return 1;
+                                    
+                                    // Then sort alphabetically by name
+                                    return a.name.localeCompare(b.name);
+                                });
+                                
+                                console.log(`Loaded ${accounts.length} accounts for user ${userId}`);
+                                renderAccounts();
+                                
+                                if (isOnline) {
+                                    updateSyncStatus('synced', 'All accounts synced');
+                                    processPendingOperations();
+                                } else {
+                                    updateSyncStatus('offline', 'Using offline data. Changes will sync when back online', 'fa-wifi-slash');
+                                }
+                            },
+                            (error) => {
+                                console.error(`Firestore listen error for user ${userId}:`, error);
+                                updateSyncStatus('error', 'Sync error: ' + error.message);
+                            }
+                        );
+                } catch (error) {
+                    console.error(`Error setting up accounts listener for user ${userId}:`, error);
+                    updateSyncStatus('error', 'Failed to connect to database');
+                }
+            }
+            
+            // Login function
+            function login(email, password) {
+                updateSyncStatus('syncing', 'Signing in...');
+                
+                // First sign out if another user is signed in
+                if (currentUser) {
+                    logout();
+                }
+                
+                auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                    .then(() => {
+                        console.log(`Attempting to sign in as: ${email}`);
+                        return auth.signInWithEmailAndPassword(email, password);
+                    })
+                    .then((userCredential) => {
+                        // Login successful
+                        console.log(`Signed in successfully as: ${userCredential.user.email} (${userCredential.user.uid})`);
+                        showAlert('Signed in successfully!', 'success');
+                    })
+                    .catch((error) => {
+                        console.error("Sign in error:", error);
+                        updateSyncStatus('error', 'Sign in failed');
+                        showAlert('Authentication failed: ' + error.message, 'error');
+                    });
+            }
+            
+            // Register function
+            function register(email, password) {
+                // First sign out if another user is signed in
+                if (currentUser) {
+                    logout();
+                }
+                
+                auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                    .then(() => {
+                        console.log(`Attempting to create account: ${email}`);
+                        return auth.createUserWithEmailAndPassword(email, password);
+                    })
+                    .then((userCredential) => {
+                        // Registration successful
+                        console.log(`Account created successfully: ${userCredential.user.email} (${userCredential.user.uid})`);
+                        showAlert('Account created! You have been signed in.', 'success');
+                        registerModal.hide();
+                    })
+                    .catch((error) => {
+                        console.error("Registration error:", error);
+                        showAlert('Registration failed: ' + error.message, 'error');
+                    });
+            }
+            
+            // Logout function
+            function logout() {
+                auth.signOut()
+                    .then(() => {
+                        console.log("User signed out");
+                        // Clear local data
+                        accounts = [];
+                        renderAccounts();
+                    })
+                    .catch((error) => {
+                        console.error("Error signing out:", error);
+                        showAlert('Error signing out: ' + error.message, 'error');
+                    });
+            }
+            
+            // Update sync status indicator
+            function updateSyncStatus(status, message, iconOverride) {
+                let icon = '';
+                switch (status) {
+                    case 'synced':
+                        icon = '<i class="fas fa-check-circle"></i>';
+                        break;
+                    case 'syncing':
+                        icon = '<i class="fas fa-sync fa-spin"></i>';
+                        break;
+                    case 'error':
+                        icon = '<i class="fas fa-exclamation-circle"></i>';
+                        break;
+                    case 'offline':
+                        icon = '<i class="fas fa-wifi-slash"></i>';
+                        break;
+                    default:
+                        icon = iconOverride ? `<i class="fas ${iconOverride}"></i>` : '';
+                }
+                
+                syncStatus.innerHTML = `${icon} ${message}`;
+                
+                // Update favicon with badge if there are pending operations
+                const pendingCount = pendingOperations.length;
+                if (pendingCount > 0) {
+                    // Add a visual indicator that changes are pending
+                    syncStatus.innerHTML += ` <span class="badge bg-warning text-dark">${pendingCount}</span>`;
+                }
+            }
+            
+            // Execute account operations
+            // These functions actually perform the Firebase operations
+            // They return promises to allow chaining
+            function executeAddAccount(name, secret, service = 'default', id = null, pinned = false) {
+                if (!currentUser) return Promise.reject(new Error("Not authenticated"));
+                
+                const userId = currentUser.uid;
+                
+                // Encrypt secret before storing
+                const encryptedSecret = encryptSecret(secret);
+                
+                // If an ID is provided, use it, otherwise let Firestore generate one
+                let accountRef;
+                if (id) {
+                    accountRef = db.collection('users').doc(userId)
+                        .collection('accounts').doc(id);
+                } else {
+                    accountRef = db.collection('users').doc(userId)
+                        .collection('accounts').doc();
+                }
+                
+                // Use set with merge for better offline support
+                return accountRef.set({
+                    name: name,
+                    secret: encryptedSecret,
+                    service: service, // Store service type
+                    pinned: pinned, // Store pinned status
+                    userId: userId, // Store user ID for extra security and clarity
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+            
+            function executeUpdateAccount(id, name, secret, service = 'default', pinned = false) {
+                if (!currentUser) return Promise.reject(new Error("Not authenticated"));
+                
+                const userId = currentUser.uid;
+                
+                // Encrypt secret before storing
+                const encryptedSecret = encryptSecret(secret);
+                
+                return db.collection('users').doc(userId)
+                    .collection('accounts')
+                    .doc(id)
+                    .update({
+                        name: name,
+                        secret: encryptedSecret,
+                        service: service, // Update service type
+                        pinned: pinned, // Update pinned status
+                        userId: userId, // Update user ID just in case
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+            }
+            
+            function executeDeleteAccount(id) {
+                if (!currentUser) return Promise.reject(new Error("Not authenticated"));
+                
+                const userId = currentUser.uid;
+                
+                return db.collection('users').doc(userId)
+                    .collection('accounts')
+                    .doc(id)
+                    .delete();
+            }
+            
+            // Save a new account to Firestore
+            function addAccount(name, secret, service = 'default', pinned = false) {
+                if (!currentUser) {
+                    showAlert('You must be logged in to add accounts', 'error');
+                    return;
+                }
+                
+                const userId = currentUser.uid;
+                console.log(`Adding account for user ${userId}: ${name}, service: ${service}`);
+                
+                updateSyncStatus('syncing', 'Adding account...');
+                
+                // Generate unique document ID for better offline support
+                const newAccountRef = db.collection('users').doc(userId)
+                    .collection('accounts').doc();
+                    
+                const accountId = newAccountRef.id;
+                
+                if (!isOnline) {
+                    // Store the operation to be executed when back online
+                    addPendingOperation('add', { id: accountId, name, secret, service, pinned, userId });
+                    updateSyncStatus('offline', 'Account will be synced when back online', 'fa-wifi-slash');
+                    showAlert('Account saved offline. It will sync when connection is restored.', 'warning');
+                    return;
+                }
+                
+                // Encrypt secret before storing
+                const encryptedSecret = encryptSecret(secret);
+                
+                // Use set with merge to better support offline operations
+                newAccountRef.set({
+                    name: name,
+                    secret: encryptedSecret,
+                    service: service, // Store service type
+                    pinned: pinned, // Store pinned status
+                    userId: userId, // Store user ID for extra security and clarity
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true })
+                    .then(() => {
+                        console.log(`Account added with ID: ${accountId} for user ${userId}`);
+                        showAlert('Account added successfully!', 'success');
+                    })
+                    .catch((error) => {
+                        console.error(`Error adding account for user ${userId}:`, error);
+                        // If failed and we're online, store for later retry
+                        addPendingOperation('add', { id: accountId, name, secret, service, pinned, userId });
+                        showAlert('Failed to add account: ' + error.message, 'error');
+                        updateSyncStatus('error', 'Failed to add account');
+                    });
+            }
+            
+            // Update an existing account
+            function updateAccount(id, name, secret, service = 'default', pinned = false) {
+                if (!currentUser) {
+                    showAlert('You must be logged in to update accounts', 'error');
+                    return;
+                }
+                
+                const userId = currentUser.uid;
+                console.log(`Updating account ${id} for user ${userId}`);
+                
+                updateSyncStatus('syncing', 'Updating account...');
+                
+                if (!isOnline) {
+                    // Store the operation to be executed when back online
+                    addPendingOperation('update', { id, name, secret, service, pinned, userId });
+                    updateSyncStatus('offline', 'Changes will be synced when back online', 'fa-wifi-slash');
+                    showAlert('Changes saved offline. They will sync when connection is restored.', 'warning');
+                    return;
+                }
+                
+                // Verify ownership before updating
+                db.collection('users').doc(userId)
+                    .collection('accounts').doc(id).get()
+                    .then((doc) => {
+                        if (!doc.exists) {
+                            throw new Error('Account not found or you do not have permission to update it');
+                        }
+                        
+                        return executeUpdateAccount(id, name, secret, service, pinned);
+                    })
+                    .then(() => {
+                        showAlert('Account updated successfully!', 'success');
+                    })
+                    .catch((error) => {
+                        console.error(`Error updating account ${id} for user ${userId}:`, error);
+                        // If failed and we're online, store for later retry
+                        addPendingOperation('update', { id, name, secret, service, pinned, userId });
+                        showAlert('Failed to update account: ' + error.message, 'error');
+                        updateSyncStatus('error', 'Failed to update account');
+                    });
+            }
+            
+            // Delete an account
+            function deleteAccount(id) {
+                if (!currentUser) {
+                    showAlert('You must be logged in to delete accounts', 'error');
+                    return;
+                }
+                
+                const userId = currentUser.uid;
+                console.log(`Deleting account ${id} for user ${userId}`);
+                
+                if (confirm('Are you sure you want to delete this account?')) {
+                    updateSyncStatus('syncing', 'Deleting account...');
+                    
+                    if (!isOnline) {
+                        // Store the operation to be executed when back online
+                        addPendingOperation('delete', { id, userId });
+                        updateSyncStatus('offline', 'Deletion will be synced when back online', 'fa-wifi-slash');
+                        showAlert('Deletion saved offline. It will sync when connection is restored.', 'warning');
+                        return;
+                    }
+                    
+                    // Verify ownership before deleting
+                    db.collection('users').doc(userId)
+                        .collection('accounts').doc(id).get()
+                        .then((doc) => {
+                            if (!doc.exists) {
+                                throw new Error('Account not found or you do not have permission to delete it');
+                            }
+                            
+                            return executeDeleteAccount(id);
+                        })
+                        .then(() => {
+                            showAlert('Account deleted', 'success');
+                        })
+                        .catch((error) => {
+                            console.error(`Error deleting account ${id} for user ${userId}:`, error);
+                            // If failed and we're online, store for later retry
+                            addPendingOperation('delete', { id, userId });
+                            showAlert('Failed to delete account: ' + error.message, 'error');
+                            updateSyncStatus('error', 'Failed to delete account');
+                        });
+                }
+            }
+            
+            // Simple encryption/decryption for secrets
+            function encryptSecret(secret) {
+                if (!currentUser) return secret;
+                
+                try {
+                    // Use user's UID as part of the encryption key
+                    const key = CryptoJS.SHA256(currentUser.uid).toString();
+                    const encrypted = CryptoJS.AES.encrypt(secret, key).toString();
+                    return encrypted;
+                } catch (error) {
+                    console.error("Encryption error:", error);
+                    return secret; // Fallback to unencrypted
+                }
+            }
+            
+            function decryptSecret(encryptedSecret) {
+                if (!currentUser) return encryptedSecret;
+                
+                try {
+                    // Use user's UID as part of the encryption key
+                    const key = CryptoJS.SHA256(currentUser.uid).toString();
+                    const decrypted = CryptoJS.AES.decrypt(encryptedSecret, key).toString(CryptoJS.enc.Utf8);
+                    return decrypted;
+                } catch (error) {
+                    console.error("Decryption error:", error);
+                    return encryptedSecret; // Fallback to the encrypted string
+                }
+            }
+            
+            // Base32 decoding function
+            function base32ToHex(base32) {
+                const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                let bits = '';
+                let hex = '';
+                
+                // Convert each base32 character to 5 bits
+                for (let i = 0; i < base32.length; i++) {
+                    const val = base32Chars.indexOf(base32.charAt(i).toUpperCase());
+                    if (val === -1) continue; // Skip non-base32 characters
+                    bits += val.toString(2).padStart(5, '0');
+                }
+                
+                // Convert bits to hex
+                for (let i = 0; i < bits.length - 3; i += 4) {
+                    const chunk = bits.substr(i, 4);
+                    hex += parseInt(chunk, 2).toString(16);
+                }
+                
+                return hex;
+            }
+            
+            // Generate TOTP code
+            function generateTOTP(secret) {
+                try {
+                    // Clean up the secret key (remove spaces and convert to uppercase)
+                    const cleanSecret = secret.replace(/\s+/g, '').toUpperCase();
+                    
+                    // Get current time window (30 seconds)
+                    const epoch = Math.floor(Date.now() / 1000);
+                    const timeWindow = Math.floor(epoch / 30);
+                    
+                    // Use CryptoJS if available
+                    if (typeof CryptoJS !== 'undefined') {
+                        // Convert time window to buffer
+                        const timeBytes = new Uint8Array(8);
+                        let time = timeWindow;
+                        for (let i = 7; i >= 0; i--) {
+                            timeBytes[i] = time & 0xff;
+                            time = time >> 8;
+                        }
+                        
+                        // Convert secret to hex
+                        const secretHex = base32ToHex(cleanSecret);
+                        
+                        // Calculate HMAC
+                        const wordArray = CryptoJS.enc.Hex.parse(secretHex);
+                        const timeWordArray = CryptoJS.enc.Hex.parse(Array.from(timeBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+                        const hash = CryptoJS.HmacSHA1(timeWordArray, wordArray);
+                        const hashHex = hash.toString(CryptoJS.enc.Hex);
+                        
+                        // Get offset and truncate
+                        const offset = parseInt(hashHex.substr(hashHex.length - 1), 16);
+                        let otp = parseInt(hashHex.substr(offset * 2, 8), 16) & 0x7fffffff;
+                        otp = otp % 1000000;
+                        
+                        return otp.toString().padStart(6, '0');
+                    }
+                    
+                    // Fallback to simple implementation if CryptoJS is not available
+                    return fallbackTOTP(cleanSecret, timeWindow);
+                } catch (error) {
+                    console.error("Error generating TOTP:", error);
+                    // Use fallback method if there's an error
+                    const epoch = Math.floor(Date.now() / 1000);
+                    const timeWindow = Math.floor(epoch / 30);
+                    return fallbackTOTP(secret, timeWindow);
+                }
+            }
+            
+            // Fallback TOTP implementation (not cryptographically secure)
+            function fallbackTOTP(secret, timeWindow) {
+                // Simple hash function for fallback
+                let hash = 0;
+                const combined = secret + timeWindow;
+                
+                for (let i = 0; i < combined.length; i++) {
+                    hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+                    hash |= 0; // Convert to 32-bit integer
+                }
+                
+                // Generate a 6-digit code
+                const code = Math.abs(hash) % 1000000;
+                return code.toString().padStart(6, '0');
+            }
+            
+            // Get time remaining until next token refresh
+            function getTimeRemaining() {
+                const epoch = Math.floor(Date.now() / 1000);
+                return 30 - (epoch % 30);
+            }
+            
+            // Render accounts list
+            function renderAccounts() {
+                if (accounts.length === 0) {
+                    noAccounts.style.display = 'block';
+                    clearInterval(updateInterval);
+                    return;
+                }
+                
+                noAccounts.style.display = 'none';
+                
+                // Filter accounts based on search
+                const searchTerm = searchInput.value.toLowerCase();
+                const filteredAccounts = accounts.filter(account => 
+                    account.name.toLowerCase().includes(searchTerm)
+                );
+                
+                // Clear existing content
+                accountsList.innerHTML = filteredAccounts.length === 0 ? 
+                    '<div class="text-center p-4">No matching accounts found</div>' : '';
+                
+                // Check if we're in grid view mode
+                const isGridView = accountsList.classList.contains('grid-view');
+                const isCompactView = accountsList.classList.contains('mobile-compact-view');
+                console.log("Current view mode - Grid view:", isGridView, "Compact view:", isCompactView);
+                
+                // Separate pinned and regular accounts
+                const pinnedAccounts = filteredAccounts.filter(account => account.pinned);
+                const regularAccounts = filteredAccounts.filter(account => !account.pinned);
+                
+                // Show pinned accounts section if there are any
+                if (pinnedAccounts.length > 0) {
+                    const pinnedHeader = document.createElement('div');
+                    pinnedHeader.className = 'accounts-section-header';
+                    pinnedHeader.innerHTML = '<i class="fas fa-thumbtack"></i> Pinned Accounts';
+                    accountsList.appendChild(pinnedHeader);
+                    
+                    // Render pinned accounts
+                    renderAccountItems(pinnedAccounts, isGridView, isCompactView, true);
+                    
+                    // Add non-pinned header if we also have regular accounts
+                    if (regularAccounts.length > 0) {
+                        const regularHeader = document.createElement('div');
+                        regularHeader.className = 'accounts-section-header';
+                        regularHeader.innerHTML = '<i class="fas fa-list"></i> Other Accounts';
+                        accountsList.appendChild(regularHeader);
+                    }
+                }
+                
+                // Render non-pinned accounts
+                if (regularAccounts.length > 0) {
+                    renderAccountItems(regularAccounts, isGridView, isCompactView, false);
+                }
+                
+                // Start token update interval if not already running
+                if (!updateInterval && accounts.length > 0) {
+                    updateInterval = setInterval(updateTokens, TOKEN_UPDATE_INTERVAL);
+                }
+            }
+            
+            // Helper function to render account items
+            function renderAccountItems(accountsToRender, isGridView, isCompactView, isPinned) {
+                // Available token styles
+                const tokenStyles = [
+                    'token-style-1',
+                    'token-style-2',
+                    'token-style-3',
+                    'token-style-4',
+                    'token-style-5',
+                    'token-style-6',
+                    'token-style-7',
+                    'token-style-8',
+                    'token-style-monospace',
+                    'token-style-outlined',
+                    'token-style-neon',
+                    'token-style-dark',
+                    'token-style-card',
+                    'token-style-neumorphic',
+                    'token-style-pastel',
+                    'token-style-blocks',
+                    'token-style-segmented',
+                    'token-style-retro'
+                ];
+                
+                // Add accounts to list
+                accountsToRender.forEach((account) => {
+                    // Decrypt the secret before generating token
+                    const decryptedSecret = decryptSecret(account.secret);
+                    const token = generateTOTP(decryptedSecret);
+                    const timeRemaining = getTimeRemaining();
+                    const progressValue = (timeRemaining / 30) * 100;
+                    const dashOffset = 251.2 - (251.2 * progressValue / 100);
+                    
+                    // Use a fixed token style instead of dynamic selection
+                    const tokenStyle = 'token-style-1';
+                    
+                    // Get service icon based on account.service or default
+                    const service = account.service || 'default';
+                    const iconClass = SERVICE_ICONS[service] || SERVICE_ICONS.default;
+                    const iconPrefix = ['google', 'facebook', 'github', 'twitter', 'microsoft', 'apple', 'amazon', 
+                                       'dropbox', 'slack', 'discord', 'linkedin', 'paypal', 'steam', 'gitlab', 
+                                       'wordpress', 'bitbucket'].includes(service) ? 'fab' : 'fas';
+                    
+                    const accountItem = document.createElement('div');
+                    accountItem.className = 'code-item d-flex align-items-center justify-content-between';
+                    if (account.pinned) {
+                        accountItem.classList.add('pinned');
+                    }
+                    accountItem.dataset.id = account.id;
+                    
+                    // Special handling for styles that need digit-by-digit rendering
+                    let tokenHTML = token;
+                    if (tokenStyle === 'token-style-blocks' || tokenStyle === 'token-style-segmented') {
+                        tokenHTML = '';
+                        for (let i = 0; i < token.length; i++) {
+                            tokenHTML += `<span>${token[i]}</span>`;
+                        }
+                    }
+                    
+                    // PIN indicator for pinned accounts
+                    const pinIndicator = account.pinned ? 
+                        `<div class="pin-indicator"><i class="fas fa-thumbtack"></i></div>` : '';
+                    
+                    // Slightly different layout for compact view
+                    if (isCompactView && window.innerWidth <= 576) {
+                        accountItem.innerHTML = `
+                            <div class="token-container">
+                                <h5 class="mb-0" title="${account.name}">
+                                    <i class="${iconPrefix} ${iconClass}" style="color: #4B97C5;"></i>
+                                    <span>${account.name}</span>
+                                </h5>
+                                <div class="token ${tokenStyle}" title="Click to copy" style="cursor: pointer;" data-token="${token}">${tokenHTML}</div>
+                            </div>
+                            <div class="d-flex align-items-center actions-container">
+                                <button class="copy-btn" title="Copy code" data-token="${token}">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <div class="progress-container">
+                                    <svg class="circular-progress" viewBox="0 0 100 100">
+                                        <circle class="progress-circle" cx="50" cy="50" r="40" />
+                                        <circle class="progress-value" cx="50" cy="50" r="40" 
+                                                stroke-dasharray="251.2" 
+                                                stroke-dashoffset="${dashOffset}" />
+                                    </svg>
+                                    <div class="time-remaining position-absolute top-50 start-50 translate-middle">
+                                        ${timeRemaining}s
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><button class="dropdown-item pin-btn" data-id="${account.id}">
+                                            <i class="fas fa-thumbtack me-2"></i>${account.pinned ? 'Unpin' : 'Pin'}
+                                        </button></li>
+                                        <li><button class="dropdown-item edit-btn" data-id="${account.id}">
+                                            <i class="fas fa-edit me-2"></i>Edit
+                                        </button></li>
+                                        <li><button class="dropdown-item delete-btn" data-id="${account.id}">
+                                            <i class="fas fa-trash-alt me-2"></i>Delete
+                                        </button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    } else if (isGridView) {
+                        // Grid view layout with optimized account name for two lines
+                        accountItem.innerHTML = `
+                            <div class="token-container">
+                                <h5 class="mb-1" title="${account.name}">
+                                    <i class="${iconPrefix} ${iconClass}"></i>
+                                    <span>${account.name}</span>
+                                </h5>
+                                <div class="token ${tokenStyle}" title="Click to copy" style="cursor: pointer;" data-token="${token}">${tokenHTML}</div>
+                            </div>
+                            <div class="d-flex align-items-center actions-container">
+                                <button class="copy-btn me-2" title="Copy code" data-token="${token}">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <div class="progress-container me-2">
+                                    <svg class="circular-progress" viewBox="0 0 100 100">
+                                        <circle class="progress-circle" cx="50" cy="50" r="40" />
+                                        <circle class="progress-value" cx="50" cy="50" r="40" 
+                                                stroke-dasharray="251.2" 
+                                                stroke-dashoffset="${dashOffset}" />
+                                    </svg>
+                                    <div class="time-remaining position-absolute top-50 start-50 translate-middle">
+                                        ${timeRemaining}s
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><button class="dropdown-item pin-btn" data-id="${account.id}">
+                                            <i class="fas fa-thumbtack me-2"></i>${account.pinned ? 'Unpin' : 'Pin'}
+                                        </button></li>
+                                        <li><button class="dropdown-item edit-btn" data-id="${account.id}">
+                                            <i class="fas fa-edit me-2"></i>Edit
+                                        </button></li>
+                                        <li><button class="dropdown-item delete-btn" data-id="${account.id}">
+                                            <i class="fas fa-trash-alt me-2"></i>Delete
+                                        </button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Standard view layout with optimized account name
+                        accountItem.innerHTML = `
+                            <div class="token-container">
+                                <h5 class="mb-1" title="${account.name}">
+                                    <i class="${iconPrefix} ${iconClass} me-2" style="color: #4B97C5;"></i>
+                                    <span>${account.name}</span>
+                                </h5>
+                                <div class="token ${tokenStyle}" title="Click to copy" style="cursor: pointer;" data-token="${token}">${tokenHTML}</div>
+                            </div>
+                            <div class="d-flex align-items-center actions-container">
+                                <button class="copy-btn me-2" title="Copy code" data-token="${token}">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <div class="progress-container me-2">
+                                    <svg class="circular-progress" viewBox="0 0 100 100">
+                                        <circle class="progress-circle" cx="50" cy="50" r="40" />
+                                        <circle class="progress-value" cx="50" cy="50" r="40" 
+                                                stroke-dasharray="251.2" 
+                                                stroke-dashoffset="${dashOffset}" />
+                                    </svg>
+                                    <div class="time-remaining position-absolute top-50 start-50 translate-middle">
+                                        ${timeRemaining}s
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><button class="dropdown-item pin-btn" data-id="${account.id}">
+                                            <i class="fas fa-thumbtack me-2"></i>${account.pinned ? 'Unpin' : 'Pin'}
+                                        </button></li>
+                                        <li><button class="dropdown-item edit-btn" data-id="${account.id}">
+                                            <i class="fas fa-edit me-2"></i>Edit
+                                        </button></li>
+                                        <li><button class="dropdown-item delete-btn" data-id="${account.id}">
+                                            <i class="fas fa-trash-alt me-2"></i>Delete
+                                        </button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    accountsList.appendChild(accountItem);
+                    
+                    // Add event listener for copy button
+                    const copyBtn = accountItem.querySelector('.copy-btn');
+                    copyBtn.addEventListener('click', () => {
+                        navigator.clipboard.writeText(token)
+                            .then(() => showAlert('Code copied to clipboard!', 'success'))
+                            .catch(err => showAlert('Failed to copy code', 'error'));
+                    });
+                    
+                    // Add event listener for clicking on the token itself
+                    const tokenElement = accountItem.querySelector('.token');
+                    tokenElement.addEventListener('click', () => {
+                        navigator.clipboard.writeText(token)
+                            .then(() => showAlert('Code copied to clipboard!', 'success'))
+                            .catch(err => showAlert('Failed to copy code', 'error'));
+                    });
+                    
+                    // Add event listeners for edit and delete
+                    const editBtn = accountItem.querySelector('.edit-btn');
+                    editBtn.addEventListener('click', () => {
+                        const accountToEdit = accounts.find(a => a.id === account.id);
+                        editAccount(accountToEdit);
+                    });
+                    
+                    const deleteBtn = accountItem.querySelector('.delete-btn');
+                    deleteBtn.addEventListener('click', () => deleteAccount(account.id));
+                    
+                    // Add event listener for pin/unpin button
+                    const pinBtn = accountItem.querySelector('.pin-btn');
+                    pinBtn.addEventListener('click', () => togglePinAccount(account.id));
+                });
+            }
+            
+            // Edit an existing account (to populate modal)
+            function editAccount(account) {
+                accountNameInput.value = account.name;
+                // Decrypt secret before showing in form
+                secretKeyInput.value = decryptSecret(account.secret);
+                
+                // Set service type
+                const service = account.service || 'default';
+                serviceTypeSelect.value = service;
+                
+                // Update service icon
+                const iconClass = SERVICE_ICONS[service] || SERVICE_ICONS.default;
+                const iconPrefix = ['google', 'facebook', 'github', 'twitter', 'microsoft', 'apple', 'amazon', 
+                                  'dropbox', 'slack', 'discord', 'linkedin', 'paypal', 'steam', 'gitlab', 
+                                  'wordpress', 'bitbucket'].includes(service) ? 'fab' : 'fas';
+                selectedServiceIcon.innerHTML = `<i class="${iconPrefix} ${iconClass}"></i>`;
+                
+                // Update the large preview icon
+                const serviceIconPreview = document.getElementById('serviceIconPreview');
+                serviceIconPreview.innerHTML = `<i class="${iconPrefix} ${iconClass} fa-2x"></i>`;
+                
+                // Set pin switch if it exists
+                const pinAccountSwitch = document.getElementById('pinAccountSwitch');
+                if (pinAccountSwitch) {
+                    pinAccountSwitch.checked = account.pinned || false;
+                }
+                
+                // Change save button functionality
+                saveAccountBtn.dataset.mode = 'edit';
+                saveAccountBtn.dataset.id = account.id;
+                
+                // Update button text for edit mode
+                saveAccountBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Changes';
+                
+                // Show the modal
+                addAccountModal.show();
+            }
+            
+            // Update tokens and progress bars
+            function updateTokens() {
+                const timeRemaining = getTimeRemaining();
+                const progressValue = (timeRemaining / 30) * 100;
+                const dashOffset = 251.2 - (251.2 * progressValue / 100);
+                
+                // Update time remaining text
+                document.querySelectorAll('.time-remaining').forEach(el => {
+                    el.textContent = `${timeRemaining}s`;
+                });
+                
+                // Update progress rings
+                document.querySelectorAll('.progress-value').forEach(el => {
+                    el.setAttribute('stroke-dashoffset', dashOffset);
+                });
+                
+                // Regenerate tokens when time expires
+                if (timeRemaining === 30) {
+                    renderAccounts();
+                }
+            }
+            
+            // Show alert message
+            function showAlert(message, type) {
+                const alert = document.createElement('div');
+                alert.className = `custom-alert ${type}`;
+                alert.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'exclamation-circle'}"></i>
+                    <span>${message}</span>
+                `;
+                alertContainer.appendChild(alert);
+                
+                // Remove alert after animation completes
+                setTimeout(() => {
+                    alert.remove();
+                }, 3000);
+            }
+            
+            // Event Listeners
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                login(email, password);
+            });
+            
+            registerBtn.addEventListener('click', function() {
+                registerModal.show();
+            });
+            
+            createAccountBtn.addEventListener('click', function() {
+                if (!registerForm.checkValidity()) {
+                    registerForm.reportValidity();
+                    return;
+                }
+                
+                const email = document.getElementById('regEmail').value;
+                const password = document.getElementById('regPassword').value;
+                const confirm = document.getElementById('confirmPassword').value;
+                
+                if (password !== confirm) {
+                    showAlert('Passwords do not match', 'error');
+                    return;
+                }
+                
+                register(email, password);
+            });
+            
+            logoutBtn.addEventListener('click', logout);
+            
+            // Export accounts function
+            function exportAccounts() {
+                if (!currentUser || accounts.length === 0) {
+                    showAlert('No accounts to export', 'warning');
+                    return;
+                }
+                
+                try {
+                    // Create export data with decrypted secrets
+                    const exportData = accounts.map(account => ({
+                        id: account.id,
+                        name: account.name,
+                        secret: decryptSecret(account.secret),
+                        service: account.service || 'default', // Include service type
+                        pinned: account.pinned, // Include pinned status
+                        // Don't include userId for security
+                    }));
+                    
+                    // Create a blob with the data
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Create a link to download the file
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `2fa-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Clean up
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 0);
+                    
+                    showAlert('Accounts exported successfully!', 'success');
+                } catch (error) {
+                    console.error('Export error:', error);
+                    showAlert('Failed to export accounts: ' + error.message, 'error');
+                }
+            }
+            
+            // Import accounts function
+            function importAccounts(file) {
+                if (!currentUser) {
+                    showAlert('You must be logged in to import accounts', 'error');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    try {
+                        const importData = JSON.parse(e.target.result);
+                        
+                        if (!Array.isArray(importData)) {
+                            throw new Error('Invalid import file format');
+                        }
+                        
+                        // Confirm import
+                        if (!confirm(`Import ${importData.length} accounts? This will not overwrite existing accounts.`)) {
+                            return;
+                        }
+                        
+                        updateSyncStatus('syncing', 'Importing accounts...');
+                        
+                        // Track success/failure
+                        let successCount = 0;
+                        let failureCount = 0;
+                        
+                        // Process each account
+                        for (const account of importData) {
+                            if (!account.name || !account.secret) {
+                                failureCount++;
+                                continue;
+                            }
+                            
+                            try {
+                                // Validate the secret
+                                generateTOTP(account.secret);
+                                
+                                // Extract service type (use default if not specified)
+                                const service = account.service || 'default';
+                                
+                                // Add the account
+                                await executeAddAccount(account.name, account.secret, service, null, account.pinned);
+                                successCount++;
+                            } catch (error) {
+                                console.error('Error importing account:', error);
+                                failureCount++;
+                            }
+                        }
+                        
+                        if (successCount > 0) {
+                            showAlert(`Successfully imported ${successCount} accounts${failureCount > 0 ? ` (${failureCount} failed)` : ''}`, 'success');
+                        } else {
+                            showAlert('Failed to import any accounts', 'error');
+                        }
+                        
+                        updateSyncStatus('synced', 'Import complete');
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        showAlert('Failed to import accounts: ' + error.message, 'error');
+                    }
+                };
+                
+                reader.onerror = () => {
+                    showAlert('Failed to read import file', 'error');
+                };
+                
+                reader.readAsText(file);
+            }
+            
+            // Create hidden file input for import
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    importAccounts(e.target.files[0]);
+                }
+                // Reset input so the same file can be selected again
+                e.target.value = '';
+            });
+            
+            // Add event listeners for export/import buttons
+            const exportAccountsBtn = document.getElementById('exportAccountsBtn');
+            exportAccountsBtn.addEventListener('click', exportAccounts);
+            
+            const importAccountsBtn = document.getElementById('importAccountsBtn');
+            importAccountsBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // Refresh accounts without full page reload
+            function refreshAccounts() {
+                if (!currentUser) {
+                    showAlert('You must be logged in to refresh accounts', 'warning');
+                    return;
+                }
+                
+                // Start spinning the refresh icon
+                const refreshBtn = document.getElementById('refreshAccountsBtn');
+                const refreshIcon = refreshBtn.querySelector('i');
+                refreshIcon.classList.add('fa-spin');
+                refreshBtn.disabled = true;
+                
+                // Show refreshing status
+                updateSyncStatus('syncing', 'Refreshing accounts...');
+                
+                // Clear existing accounts
+                accounts = [];
+                renderAccounts();
+                
+                const userId = currentUser.uid;
+                
+                // Get fresh data from Firestore
+                db.collection('users').doc(userId)
+                    .collection('accounts')
+                    .orderBy('name')
+                    .get()
+                    .then((snapshot) => {
+                        accounts = [];
+                        snapshot.forEach((doc) => {
+                            accounts.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
+                        
+                        console.log(`Refreshed ${accounts.length} accounts for user ${userId}`);
+                        renderAccounts();
+                        
+                        if (isOnline) {
+                            updateSyncStatus('synced', 'Accounts refreshed successfully');
+                            // Process any pending operations after refresh
+                            processPendingOperations();
+                        } else {
+                            updateSyncStatus('offline', 'Using cached data. Changes will sync when back online', 'fa-wifi-slash');
+                        }
+                        
+                        showAlert('Accounts refreshed successfully', 'success');
+                    })
+                    .catch((error) => {
+                        console.error(`Error refreshing accounts for user ${userId}:`, error);
+                        updateSyncStatus('error', 'Failed to refresh accounts: ' + error.message);
+                        showAlert('Failed to refresh accounts: ' + error.message, 'error');
+                    })
+                    .finally(() => {
+                        // Stop spinning and re-enable button
+                        refreshIcon.classList.remove('fa-spin');
+                        refreshBtn.disabled = false;
+                    });
+            }
+            
+            // Add refresh button event listener
+            const refreshAccountsBtn = document.getElementById('refreshAccountsBtn');
+            refreshAccountsBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                refreshAccounts();
+            });
+            
+            // Add keyboard shortcut for refresh (Ctrl+R or Cmd+R)
+            document.addEventListener('keydown', function(e) {
+                // Check if Ctrl+R or Cmd+R is pressed and main app is visible
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r' && mainApp.style.display !== 'none') {
+                    e.preventDefault(); // Prevent default browser refresh
+                    refreshAccounts();
+                }
+            });
+            
+            saveAccountBtn.addEventListener('click', () => {
+                if (!addAccountForm.checkValidity()) {
+                    addAccountForm.reportValidity();
+                    return;
+                }
+                
+                const name = accountNameInput.value.trim();
+                const secret = secretKeyInput.value.trim().replace(/\s/g, '');
+                const service = serviceTypeSelect.value;
+                
+                // Use the pin switch instead of checking if name is empty
+                const pinAccountSwitch = document.getElementById('pinAccountSwitch');
+                const pinned = pinAccountSwitch ? pinAccountSwitch.checked : false;
+                
+                // Validate the secret
+                try {
+                    generateTOTP(secret);
+                } catch (e) {
+                    showAlert('Invalid secret key format', 'error');
+                    return;
+                }
+                
+                if (saveAccountBtn.dataset.mode === 'edit') {
+                    const id = saveAccountBtn.dataset.id;
+                    updateAccount(id, name, secret, service, pinned);
+                } else {
+                    addAccount(name, secret, service, pinned);
+                }
+                
+                // Reset form and close modal
+                addAccountForm.reset();
+                saveAccountBtn.dataset.mode = 'add';
+                delete saveAccountBtn.dataset.id;
+                addAccountModal.hide();
+            });
+            
+            pasteSecretBtn.addEventListener('click', async () => {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    secretKeyInput.value = text.trim();
+                } catch (err) {
+                    showAlert('Could not access clipboard', 'error');
+                }
+            });
+            
+            searchInput.addEventListener('input', renderAccounts);
+            
+            addAccountModal.addEventListener('hidden.bs.modal', () => {
+                addAccountForm.reset();
+                saveAccountBtn.dataset.mode = 'add';
+                delete saveAccountBtn.dataset.id;
+                
+                // Reset icon preview
+                const serviceIconPreview = document.getElementById('serviceIconPreview');
+                if (serviceIconPreview) {
+                    serviceIconPreview.innerHTML = '<i class="fas fa-shield-alt fa-2x"></i>';
+                }
+                selectedServiceIcon.innerHTML = '<i class="fas fa-globe"></i>';
+                
+                // Reset button text
+                saveAccountBtn.innerHTML = '<i class="fas fa-check me-2"></i>Add Account';
+                
+                // Reset pin switch
+                const pinAccountSwitch = document.getElementById('pinAccountSwitch');
+                if (pinAccountSwitch) {
+                    pinAccountSwitch.checked = false;
+                }
+            });
+            
+            // Initialize
+            try {
+                // Initialize mobile view toggler
+                const viewToggle = document.querySelector('.view-toggle');
+                
+                // Add event listeners to view toggle buttons
+                viewToggle.querySelectorAll('.btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        console.log("View toggle clicked:", this.getAttribute('data-view'));
+                        
+                        // Remove active class from all buttons
+                        viewToggle.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+                        
+                        // Add active class to clicked button
+                        this.classList.add('active');
+                        
+                        // Update view
+                        const view = this.getAttribute('data-view');
+                        
+                        // Clear existing view classes first
+                        accountsList.classList.remove('mobile-compact-view', 'grid-view');
+                        
+                        if (view === 'compact') {
+                            accountsList.classList.add('mobile-compact-view');
+                            console.log("Switched to compact view");
+                        } else if (view === 'grid') {
+                            accountsList.classList.add('grid-view');
+                            console.log("Switched to grid view");
+                        } else {
+                            console.log("Switched to standard view");
+                        }
+                        
+                        // Save preference
+                        localStorage.setItem('2fa_view_preference', view);
+                        
+                        // Force re-render of accounts to ensure proper layout
+                        renderAccounts();
+                    });
+                });
+                
+                // Update view toggle visibility on resize
+                window.addEventListener('resize', function() {
+                    // Always keep view toggle visible, but adjust compact view on larger screens
+                    if (window.innerWidth > 576) {
+                        accountsList.classList.remove('mobile-compact-view');
+                    }
+                });
+                
+                if (!isOnline) {
+                    updateSyncStatus('offline', 'You are offline. Changes will sync when connection is restored', 'fa-wifi-slash');
+                }
+                
+                // Load saved view preference
+                const savedView = localStorage.getItem('2fa_view_preference');
+                if (savedView) {
+                    changeViewMode(savedView);
+                }
+                
+                // Add PWA install support
+                let deferredPrompt;
+                const installPWABtn = document.getElementById('installPWA');
+                
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    // Prevent the mini-infobar from appearing on mobile
+                    e.preventDefault();
+                    // Stash the event so it can be triggered later
+                    deferredPrompt = e;
+                    // Update UI to notify the user they can install the PWA
+                    installPWABtn.style.display = 'block';
+                    
+                    installPWABtn.addEventListener('click', () => {
+                        // Hide our user interface that shows our A2HS button
+                        installPWABtn.style.display = 'none';
+                        // Show the prompt
+                        deferredPrompt.prompt();
+                        // Wait for the user to respond to the prompt
+                        deferredPrompt.userChoice.then((choiceResult) => {
+                            if (choiceResult.outcome === 'accepted') {
+                                console.log('User accepted the A2HS prompt');
+                                showAlert('App installed successfully!', 'success');
+                        } else {
+                                console.log('User dismissed the A2HS prompt');
+                            }
+                            deferredPrompt = null;
+                        });
+                    });
+                });
+                
+                // Handle installed state
+                window.addEventListener('appinstalled', () => {
+                    // Hide the app-provided install promotion
+                    installPWABtn.style.display = 'none';
+                    deferredPrompt = null;
+                    console.log('PWA was installed');
+                });
+                
+                // Check if app is already installed
+                if (window.matchMedia('(display-mode: standalone)').matches) {
+                    console.log('App is running in standalone mode');
+                    installPWABtn.style.display = 'none';
+                }
+                
+                // Add a service worker if file exists
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js')
+                            .then(registration => {
+                                console.log('ServiceWorker registration successful');
+                            })
+                            .catch(error => {
+                                console.log('ServiceWorker registration failed: ', error);
+                            });
+                    });
+                }
+            } catch (e) {
+                console.error("Initialization error:", e);
+            }
+
+            // Update icon when service type changes
+            serviceTypeSelect.addEventListener('change', function() {
+                const service = this.value;
+                const iconClass = SERVICE_ICONS[service] || SERVICE_ICONS.default;
+                const iconPrefix = ['google', 'facebook', 'github', 'twitter', 'microsoft', 'apple', 'amazon', 
+                      'dropbox', 'slack', 'discord', 'linkedin', 'paypal', 'steam', 'gitlab', 
+                      'wordpress', 'bitbucket'].includes(service) ? 'fab' : 'fas';
+                
+                // Update the small icon in the input group
+                selectedServiceIcon.innerHTML = `<i class="${iconPrefix} ${iconClass}"></i>`;
+                
+                // Update the large preview icon
+                const serviceIconPreview = document.getElementById('serviceIconPreview');
+                serviceIconPreview.innerHTML = `<i class="${iconPrefix} ${iconClass} fa-2x"></i>`;
+                
+                // Add animation class
+                serviceIconPreview.classList.add('service-selected');
+                
+                // Remove animation class after transition completes
+                setTimeout(() => {
+                    serviceIconPreview.classList.remove('service-selected');
+                }, 500);
+                
+                // If service is selected, try to pre-fill the account name if it's empty
+                if (service !== 'default' && service !== 'other' && accountNameInput.value.trim() === '') {
+                    accountNameInput.value = service.charAt(0).toUpperCase() + service.slice(1);
+                }
+            });
+
+            // Pin/Unpin an account
+            function togglePinAccount(id) {
+                if (!currentUser) {
+                    showAlert('You must be logged in to pin accounts', 'error');
+                    return;
+                }
+                
+                const userId = currentUser.uid;
+                const accountToToggle = accounts.find(a => a.id === id);
+                
+                if (!accountToToggle) {
+                    showAlert('Account not found', 'error');
+                    return;
+                }
+                
+                const isPinned = accountToToggle.pinned;
+                const newPinStatus = !isPinned;
+                
+                // If offline, store operation
+                if (!isOnline) {
+                    // Update local data first
+                    accountToToggle.pinned = newPinStatus;
+                    
+                    // Store the operation to be executed when back online
+                    addPendingOperation('update', { 
+                        id, 
+                        userId, 
+                        updates: { pinned: newPinStatus }
+                    });
+                    
+                    // Update UI and show message
+                    renderAccounts();
+                    updateSyncStatus('offline', 'Pin status will be synced when back online', 'fa-wifi-slash');
+                    showAlert(`Account ${newPinStatus ? 'pinned' : 'unpinned'}. It will sync when connection is restored.`, 'warning');
+                    return;
+                }
+                
+                // Update the pinned status
+                db.collection('users').doc(userId)
+                    .collection('accounts').doc(id)
+                    .update({ pinned: newPinStatus })
+                    .then(() => {
+                        // Update our local data
+                        accountToToggle.pinned = newPinStatus;
+                        
+                        // Update UI
+                        renderAccounts();
+                        showAlert(`Account ${newPinStatus ? 'pinned' : 'unpinned'}`, 'success');
+                    })
+                    .catch((error) => {
+                        console.error(`Error updating pin status for account ${id}:`, error);
+                        
+                        // If failed and we're online, store for later retry
+                        addPendingOperation('update', { 
+                            id, 
+                            userId, 
+                            updates: { pinned: newPinStatus }
+                        });
+                        
+                        showAlert('Failed to update pin status: ' + error.message, 'error');
+                        updateSyncStatus('error', 'Failed to update pin status');
+                    });
+            }
+        });
+        
+        // Function to change view mode
+        function changeViewMode(viewMode) {
+            console.log("Changing view mode to:", viewMode);
+            
+            // Update UI buttons
+            const viewBtns = document.querySelectorAll('.view-toggle .btn');
+            viewBtns.forEach(btn => {
+                if (btn.getAttribute('data-view') === viewMode) {
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', 'true');
+                    } else {
+                    btn.classList.remove('active');
+                    btn.setAttribute('aria-pressed', 'false');
+                }
+            });
+            
+            // Get accounts list element
+            const accountsList = document.getElementById('accountsList');
+            
+            // Remove existing view classes
+            accountsList.classList.remove('mobile-compact-view', 'grid-view');
+            
+            // Apply new view class
+            if (viewMode === 'grid') {
+                accountsList.classList.add('grid-view');
+            } else if (viewMode === 'compact') {
+                accountsList.classList.add('mobile-compact-view');
+            }
+            
+            // Save preference
+            localStorage.setItem('2fa_view_preference', viewMode);
+            
+            // Force re-render accounts if needed
+            if (typeof renderAccounts === 'function' && accounts && accounts.length > 0) {
+                renderAccounts();
+            }
+        }
+    </script>
+</body>
+</html>
