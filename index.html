@@ -345,12 +345,13 @@
             
             // State
             let accounts = [];
-            let updateInterval;
+            let updateInterval = null; // Explicitly initialize as null
             let currentUser = null;
             let unsubscribeListener = null;
             let isOnline = window.navigator.onLine;
             let pendingOperations = [];
             let currentViewMode = 'standard'; // Track the current view mode
+            let lastTokenUpdate = 0; // Track when tokens were last updated
             
             // Check online status
             window.addEventListener('online', handleOnlineStatusChange);
@@ -493,6 +494,12 @@
                     
                     // Clear any existing accounts from previous user
                     accounts = [];
+                    // Clear any existing interval
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
+                    lastTokenUpdate = 0;
                     renderAccounts();
                     
                     // Start real-time listener for accounts
@@ -502,8 +509,11 @@
                     // User is signed out
                     currentUser = null;
                     accounts = [];
-                    clearInterval(updateInterval);
-                    updateInterval = null;
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
+                    lastTokenUpdate = 0;
                     
                     // Remove listener if exists
                     if (unsubscribeListener) {
@@ -523,6 +533,12 @@
                 if (unsubscribeListener) {
                     unsubscribeListener();
                     unsubscribeListener = null;
+                }
+                
+                // Clear any existing interval
+                if (updateInterval) {
+                    clearInterval(updateInterval);
+                    updateInterval = null;
                 }
                 
                 if (!currentUser) {
@@ -545,7 +561,10 @@
                         .collection('accounts')
                         .onSnapshot(
                             (snapshot) => {
+                                // Create a copy of the previous accounts for comparison
+                                const previousAccounts = [...accounts];
                                 accounts = [];
+                                
                                 snapshot.forEach((doc) => {
                                     accounts.push({
                                         id: doc.id,
@@ -563,8 +582,19 @@
                                     return a.name.localeCompare(b.name);
                                 });
                                 
+                                // Only render if accounts actually changed to avoid unnecessary renders
+                                const accountsChanged = 
+                                    previousAccounts.length !== accounts.length || 
+                                    JSON.stringify(previousAccounts.map(a => a.id).sort()) !== 
+                                    JSON.stringify(accounts.map(a => a.id).sort());
+                                
                                 console.log(`Loaded ${accounts.length} accounts for user ${userId}`);
-                                renderAccounts();
+                                
+                                if (accountsChanged) {
+                                    renderAccounts();
+                                } else {
+                                    console.log("Accounts unchanged, skipping re-render");
+                                }
                                 
                                 if (isOnline) {
                                     updateSyncStatus('synced', 'All accounts synced');
@@ -743,7 +773,7 @@
                     .delete();
             }
             
-            // Save a new account to Firestore
+            // Add a new account to Firestore
             function addAccount(name, secret, service = 'default', pinned = false) {
                 if (!currentUser) {
                     showAlert('You must be logged in to add accounts', 'error');
@@ -772,7 +802,23 @@
                 // Encrypt secret before storing
                 const encryptedSecret = encryptSecret(secret);
                 
-                // Use set with merge to better support offline operations
+                // Add the new account to the local accounts array to prevent disappearing entries
+                const newAccount = {
+                    id: accountId,
+                    name: name,
+                    secret: encryptedSecret,
+                    service: service,
+                    pinned: pinned,
+                    userId: userId
+                };
+                
+                // Add to local array first to maintain UI continuity
+                accounts.push(newAccount);
+                
+                // Re-render with the new account included
+                renderAccounts();
+                
+                // Now send to Firestore (the listener will update again when completed)
                 newAccountRef.set({
                     name: name,
                     secret: encryptedSecret,
@@ -1005,7 +1051,10 @@
             function renderAccounts() {
                 if (accounts.length === 0) {
                     noAccounts.style.display = 'block';
-                    clearInterval(updateInterval);
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
                     return;
                 }
                 
@@ -1024,7 +1073,6 @@
                 // Check if we're in grid view mode
                 const isGridView = accountsList.classList.contains('grid-view');
                 const isCompactView = accountsList.classList.contains('mobile-compact-view');
-                console.log("Current view mode - Grid view:", isGridView, "Compact view:", isCompactView);
                 
                 // Separate pinned and regular accounts
                 const pinnedAccounts = filteredAccounts.filter(account => account.pinned);
@@ -1054,9 +1102,15 @@
                     renderAccountItems(regularAccounts, isGridView, isCompactView, false);
                 }
                 
-                // Start token update interval if not already running
-                if (!updateInterval && accounts.length > 0) {
+                // Set the initial lastTokenUpdate value
+                if (lastTokenUpdate === 0) {
+                    lastTokenUpdate = Math.floor(Math.floor(Date.now() / 1000) / 30);
+                }
+                
+                // Properly manage the update interval - ensure only one exists
+                if (!updateInterval) {
                     updateInterval = setInterval(updateTokens, TOKEN_UPDATE_INTERVAL);
+                    console.log("Started token update interval");
                 }
             }
             
@@ -1330,6 +1384,8 @@
                 const timeRemaining = getTimeRemaining();
                 const progressValue = (timeRemaining / 30) * 100;
                 const dashOffset = 251.2 - (251.2 * progressValue / 100);
+                const currentEpoch = Math.floor(Date.now() / 1000);
+                const currentWindow = Math.floor(currentEpoch / 30);
                 
                 // Update time remaining text
                 document.querySelectorAll('.time-remaining').forEach(el => {
@@ -1341,8 +1397,10 @@
                     el.setAttribute('stroke-dashoffset', dashOffset);
                 });
                 
-                // Regenerate tokens when time expires
-                if (timeRemaining === 30) {
+                // Only regenerate tokens when time window changes
+                if (currentWindow > lastTokenUpdate) {
+                    console.log("Time window changed, regenerating tokens");
+                    lastTokenUpdate = currentWindow;
                     renderAccounts();
                 }
             }
