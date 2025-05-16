@@ -3,6 +3,14 @@
     // Basic obfuscation technique - not completely secure but better than plain text
     const _0x2c7e=['AIzaSyCwJ6gKE7NhEjrVUU6WV-Fl7G9nPJU80fw','manage-2fa.firebaseapp.com','manage-2fa','manage-2fa.firebasestorage.app','634856988727','1:634856988727:web:24b95066a740b08026dfb2','G-V7EG0PGXHE'];
     
+    // Google Drive API config
+    const _drive_config = {
+        apiKey: 'AIzaSyBHWVAGlgMFx1k0Xu7OyslzHjRPpP9l0WY',
+        clientId: '443928897142-muofen9m35la8vb97lo3n0ch064micr3.apps.googleusercontent.com',
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        scopes: 'https://www.googleapis.com/auth/drive.file'
+    };
+    
     // Domain validation to prevent unauthorized access
     const allowedDomains = [
         'localhost',
@@ -31,5 +39,19 @@
             appId: _0x2c7e[5],
             measurementId: _0x2c7e[6]
         };
+    };
+    
+    // Google Drive API config getter
+    window.getGoogleDriveConfig = function() {
+        // Simple domain check - this adds an additional layer of security
+        const currentDomain = window.location.hostname;
+        const isAllowedDomain = allowedDomains.includes(currentDomain);
+        
+        if (!isAllowedDomain) {
+            console.error('Unauthorized domain access attempt');
+            return { unauthorized: true }; // Return dummy object that will fail initialization
+        }
+        
+        return _drive_config;
     };
 })(); 
