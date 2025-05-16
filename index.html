@@ -2428,11 +2428,13 @@
             async function performBackup() {
                 console.log("Performing backup");
                 
-                try {
-                    if (!gapi.client.getToken()) {
-                        alert("Please connect to Google Drive first");
-                        return;
-                    }
+                // Return a promise to handle completion
+                return new Promise(async (resolve, reject) => {
+                    try {
+                        if (!gapi.client.getToken()) {
+                            alert("Please connect to Google Drive first");
+                            return reject(new Error("Not connected to Google Drive"));
+                        }
                     
                     // Kiểm tra đăng nhập Firebase
                     if (!firebase.auth().currentUser) {
@@ -2546,10 +2548,17 @@
                     document.getElementById('backupSuccessInfo').textContent = `Backup created on: ${successTimestamp}`;
                     const successModal = new bootstrap.Modal(document.getElementById('backupSuccessModal'));
                     successModal.show();
+                    
+                    // Resolve the promise on success
+                    resolve();
                 } catch (error) {
                     console.error("Backup failed:", error);
                     alert(`Backup failed: ${error.message}`);
+                    
+                    // Reject the promise on failure
+                    reject(error);
                 }
+            });
             }
             
             // Clean up old backups
@@ -2614,7 +2623,20 @@
             });
             
             backupNowBtn.addEventListener('click', function() {
-                performBackup();
+                // Disable button and show loading state
+                this.disabled = true;
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Backing up...';
+                
+                // Store reference to button for re-enabling later
+                const buttonEl = this;
+                
+                // Start backup with callback to restore button state
+                performBackup().finally(function() {
+                    // Re-enable button and restore original text
+                    buttonEl.disabled = false;
+                    buttonEl.innerHTML = originalText;
+                });
             });
             
             // Add keyboard shortcut for backup settings (Ctrl+B or Cmd+B)
@@ -2708,7 +2730,21 @@
             if (backupNowButton) {
                 backupNowButton.addEventListener('click', function() {
                     console.log("Backup Now button clicked");
-                    backupNowToGoogleDrive();
+                    
+                    // Disable button and show loading state
+                    this.disabled = true;
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Backing up...';
+                    
+                    // Store reference to button for re-enabling later
+                    const buttonEl = this;
+                    
+                    // Start backup with callback to restore button state
+                    backupNowToGoogleDrive().finally(function() {
+                        // Re-enable button and restore original text
+                        buttonEl.disabled = false;
+                        buttonEl.innerHTML = originalText;
+                    });
                 });
             }
             
@@ -2716,17 +2752,19 @@
             async function backupNowToGoogleDrive() {
                 console.log("Starting direct backup to Google Drive");
                 
-                try {
-                    if (!gapi.client.getToken()) {
-                        alert("Please connect to Google Drive first");
-                        return;
-                    }
-                    
-                    // Kiểm tra đăng nhập Firebase
-                    if (!firebase.auth().currentUser) {
-                        alert("Please sign in to your account first");
-                        return;
-                    }
+                // Return a promise so we can handle completion
+                return new Promise(async (resolve, reject) => {
+                    try {
+                        if (!gapi.client.getToken()) {
+                            alert("Please connect to Google Drive first");
+                            return reject(new Error("Not connected to Google Drive"));
+                        }
+                        
+                        // Kiểm tra đăng nhập Firebase
+                        if (!firebase.auth().currentUser) {
+                            alert("Please sign in to your account first");
+                            return reject(new Error("Not signed in"));
+                        }
                     
                     // alert("Starting backup. Please wait...");
                     
@@ -2834,10 +2872,17 @@
                     document.getElementById('backupSuccessInfo').textContent = `Backup created on: ${backupTimestamp}`;
                     const successModal = new bootstrap.Modal(document.getElementById('backupSuccessModal'));
                     successModal.show();
+                    
+                    // Resolve the promise on success
+                    resolve();
                 } catch (error) {
                     console.error("Backup failed:", error);
+                    
+                    // Reject the promise on failure
+                    reject(error);
                     alert(`Backup failed: ${error.message}`);
                 }
+                });
             }
             
             function saveBackupSettings() {
