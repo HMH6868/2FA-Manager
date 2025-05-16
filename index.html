@@ -256,17 +256,19 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
+    <!-- Load configuration file -->
+    <script src="assets/config.js"></script>
+    
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCwJ6gKE7NhEjrVUU6WV-Fl7G9nPJU80fw",
-            authDomain: "manage-2fa.firebaseapp.com",
-            projectId: "manage-2fa",
-            storageBucket: "manage-2fa.firebasestorage.app",
-            messagingSenderId: "634856988727",
-            appId: "1:634856988727:web:24b95066a740b08026dfb2",
-            measurementId: "G-V7EG0PGXHE"
-        };
+        // Get Firebase configuration securely
+        const firebaseConfig = window.getFirebaseConfig();
+        
+        // Check if config is valid (not unauthorized)
+        if (firebaseConfig.unauthorized) {
+            // Display error message instead of initializing Firebase
+            document.getElementById('loginSection').innerHTML = '<div class="alert alert-danger">Unauthorized access attempt detected. Please use an authorized domain.</div>';
+            throw new Error('Unauthorized access to Firebase configuration');
+        }
         
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
