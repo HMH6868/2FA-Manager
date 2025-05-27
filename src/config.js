@@ -10,7 +10,8 @@ const allowedDomains = [
     'localhost',
     '127.0.0.1',
     'manage-2fa.firebaseapp.com',
-    '2fa-manager.vercel.app'
+    '2fa-manager.vercel.app',
+    '2fa.hmh6868.id.vn'
 ];
 
 export const getFirebaseConfig = () => {
